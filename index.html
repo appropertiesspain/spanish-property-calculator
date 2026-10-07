@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spanish Property Purchase Cost Calculator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind Config for custom palette -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            700: '#1b365d',
+                            800: '#0f2342',
+                            900: '#081326',
+                        },
+                        gold: {
+                            400: '#e5c158',
+                            500: '#c5a03e',
+                            600: '#a3802b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js CDN for dynamic visual breakdown -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Print Media Styles for clean PDF export */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .shadow-xl, .shadow-lg, .shadow-md, .shadow-sm {
+                box-shadow: none !important;
+            }
+            .border {
+                border-color: #e2e8f0 !important;
+            }
+            .card-container {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 antialiased selection:bg-gold-500 selection:text-white">
+
+    <div class="min-h-full flex flex-col justify-between">
+        <header class="bg-navy-900 text-white shadow-md no-print border-b border-navy-700">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-gold-500 text-navy-900 rounded-lg font-bold text-xl shadow">
+                        <i class="fa-solid fa-calculator"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white" id="app-header-title">Spanish Property Cost Calculator</h1>
+                        <p class="text-xs text-slate-300" id="app-header-subtitle">Accurate tax & legal fee estimator for buying property in Spain</p>
+                    </div>
+                </div>
+
+                <!-- Language Selector -->
+                <div class="flex items-center space-x-2 bg-navy-800 p-1.5 rounded-xl border border-navy-700">
+                    <span class="text-xs font-medium text-slate-300 px-2 flex items-center gap-1">
+                        <i class="fa-solid fa-globe text-gold-400"></i> <span id="lbl-language">Language</span>:
+                    </span>
+                    <button onclick="setLanguage('en')" id="btn-lang-en" class="lang-btn px-2.5 py-1 text-xs rounded-lg font-semibold transition-all duration-200 bg-gold-500 text-navy-900 shadow">
+                        🇬🇧 EN
+                    </button>
+                    <button onclick="setLanguage('es')" id="btn-lang-es" class="lang-btn px-2.5 py-1 text-xs rounded-lg font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                        🇪🇸 ES
+                    </button>
+                    <button onclick="setLanguage('fr')" id="btn-lang-fr" class="lang-btn px-2.5 py-1 text-xs rounded-lg font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                        🇫🇷 FR
+                    </button>
+                    <button onclick="setLanguage('nl')" id="btn-lang-nl" class="lang-btn px-2.5 py-1 text-xs rounded-lg font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                        🇳🇱 NL
+                    </button>
+                    <button onclick="setLanguage('pl')" id="btn-lang-pl" class="lang-btn px-2.5 py-1 text-xs rounded-lg font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+                        🇵🇱 PL
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+            
+            <!-- Print Title (Only visible during print / save to PDF) -->
+            <div class="hidden print-only mb-6 text-center border-b pb-4">
+                <h1 class="text-2xl font-bold text-navy-900">Spanish Property Purchase Cost Summary</h1>
+                <p class="text-sm text-slate-600">Generated on <span id="print-date"></span></p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- LEFT COLUMN: User Input Controls -->
+                <div class="lg:col-span-5 bg-white p-6 sm:p-7 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h2 class="text-lg font-bold text-navy-900 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-gold-500"></i>
+                            <span id="txt-calc-settings">Calculation Parameters</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1" id="txt-calc-desc">Adjust parameters to instantly update buying costs.</p>
+                    </div>
+
+                    <!-- Input 1: Property Price -->
+                    <div class="space-y-2">
+                        <label for="property-price" class="block text-sm font-semibold text-slate-700 flex justify-between">
+                            <span id="lbl-property-price">Property Price (€)</span>
+                            <span class="text-xs font-normal text-slate-400" id="lbl-required">Required</span>
+                        </label>
+                        <div class="relative rounded-xl shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-medium">
+                                €
+                            </div>
+                            <input type="number" id="property-price" value="300000" min="10000" step="5000"
+                                class="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 focus:bg-white transition-all text-base"
+                                oninput="calculateCosts()">
+                        </div>
+                        <div class="flex gap-2 pt-1 overflow-x-auto text-xs no-print">
+                            <button onclick="setPrice(150000)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-medium transition">€150k</button>
+                            <button onclick="setPrice(300000)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-medium transition">€300k</button>
+                            <button onclick="setPrice(500000)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-medium transition">€500k</button>
+                            <button onclick="setPrice(1000000)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 font-medium transition">€1M</button>
+                        </div>
+                    </div>
+
+                    <!-- Input 2: Region / Autonomous Community -->
+                    <div class="space-y-2">
+                        <label for="region" class="block text-sm font-semibold text-slate-700">
+                            <span id="lbl-region">Region (Autonomous Community)</span>
+                        </label>
+                        <select id="region" onchange="calculateCosts()"
+                            class="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-gold-500 focus:border-gold-500 focus:bg-white transition-all text-sm">
+                            <option value="Andalusia" selected>Andalusia (Andalucía)</option>
+                            <option value="Madrid">Madrid</option>
+                            <option value="Valencia">Valencia (Comunidad Valenciana)</option>
+                            <option value="Catalonia">Catalonia (Cataluña)</option>
+                            <option value="Balearic Islands">Balearic Islands (Islas Baleares)</option>
+                            <option value="Canary Islands">Canary Islands (Islas Canarias)</option>
+                            <option value="Murcia">Murcia</option>
+                            <option value="Galicia">Galicia</option>
+                            <option value="Castilla-La Mancha">Castilla-La Mancha</option>
+                            <option value="Castilla y León">Castilla y León</option>
+                            <option value="General">General / Other Regions</option>
+                        </select>
+                        <p class="text-xs text-slate-400" id="lbl-tax-note">Regional property transfer taxes (ITP) vary across Spain.</p>
+                    </div>
+
+                    <!-- Input 3: Property Type (Resale vs New Build) -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-700">
+                            <span id="lbl-property-type">Property Type</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label id="type-resale-label" class="flex items-center justify-center p-3 border-2 border-gold-500 bg-gold-50/30 rounded-xl cursor-pointer transition-all hover:bg-slate-50">
+                                <input type="radio" name="property_type" value="resale" checked onchange="calculateCosts()" class="sr-only">
+                                <div class="text-center">
+                                    <i class="fa-solid fa-house-chimney text-navy-700 mb-1"></i>
+                                    <div class="text-xs font-bold text-slate-800" id="opt-resale">Resale (Second-hand)</div>
+                                    <div class="text-[10px] text-slate-500" id="opt-resale-sub">ITP Tax Applies</div>
+                                </div>
+                            </label>
+                            <label id="type-new-label" class="flex items-center justify-center p-3 border-2 border-slate-200 rounded-xl cursor-pointer transition-all hover:bg-slate-50">
+                                <input type="radio" name="property_type" value="new" onchange="calculateCosts()" class="sr-only">
+                                <div class="text-center">
+                                    <i class="fa-solid fa-building text-navy-700 mb-1"></i>
+                                    <div class="text-xs font-bold text-slate-800" id="opt-new">New Build (Promoción)</div>
+                                    <div class="text-[10px] text-slate-500" id="opt-new-sub">IVA + AJD Stamp Duty</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Input 4: Need a Mortgage? -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-700">
+                            <span id="lbl-mortgage">Requires Spanish Mortgage?</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label id="mortgage-no-label" class="flex items-center justify-center p-2.5 border-2 border-gold-500 bg-gold-50/30 rounded-xl cursor-pointer transition-all hover:bg-slate-50">
+                                <input type="radio" name="mortgage" value="no" checked onchange="calculateCosts()" class="sr-only">
+                                <span class="text-xs font-bold text-slate-800" id="opt-mortgage-no">No (Cash Purchase)</span>
+                            </label>
+                            <label id="mortgage-yes-label" class="flex items-center justify-center p-2.5 border-2 border-slate-200 rounded-xl cursor-pointer transition-all hover:bg-slate-50">
+                                <input type="radio" name="mortgage" value="yes" onchange="calculateCosts()" class="sr-only">
+                                <span class="text-xs font-bold text-slate-800" id="opt-mortgage-yes">Yes (+Valuation Fee)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Legal Fee Customizer / Disclaimer Toggle -->
+                    <div class="pt-2 border-t border-slate-100 text-xs text-slate-500 flex justify-between items-center">
+                        <span id="txt-estimates-info"><i class="fa-solid fa-circle-info text-navy-700 mr-1"></i> Estimates include standard notary, registry & legal rates.</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 space-y-6">
+                    
+                    <!-- SUMMARY HIGHLIGHT HERO CARD -->
+                    <div class="bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden border border-navy-700">
+                        <div class="absolute -right-10 -bottom-10 opacity-10 text-9xl pointer-events-none text-white">
+                            <i class="fa-solid fa-coins"></i>
+                        </div>
+
+                        <div class="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                            <div>
+                                <span class="text-xs uppercase tracking-wider font-semibold text-gold-400 bg-navy-800/80 border border-gold-500/30 px-3 py-1 rounded-full inline-block mb-3" id="lbl-total-outlay">
+                                    Total Investment Required
+                                </span>
+                                <div class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight" id="out-final-cost">
+                                    €0
+                                </div>
+                                <p class="text-xs text-slate-300 mt-1" id="lbl-final-cost-desc">
+                                    Property Price + All Taxes & Associated Fees
+                                </p>
+                            </div>
+
+                            <div class="bg-navy-800/80 backdrop-blur border border-navy-700 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                                <div class="flex justify-between items-center text-sm border-b border-navy-700/60 pb-2">
+                                    <span class="text-slate-300" id="lbl-summary-taxes-fees">Taxes & Costs:</span>
+                                    <span class="font-bold text-gold-400 text-base" id="out-total-taxes-fees">€0</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-slate-300" id="lbl-summary-ratio">Additional Cost %:</span>
+                                    <span class="font-bold text-white text-base" id="out-effective-rate">0.0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DETAILED COST BREAKDOWN ITEMIZATION -->
+                    <div class="bg-white p-6 sm:p-7 rounded-2xl shadow-sm border border-slate-200/80 space-y-6 card-container">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                            <h3 class="text-base font-bold text-navy-900 flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-gold-500"></i>
+                                <span id="txt-cost-breakdown-title">Itemized Purchase Expenses</span>
+                            </h3>
+                            <span class="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full" id="txt-region-badge">Andalusia</span>
+                        </div>
+
+                        <div class="space-y-3 text-sm">
+                            
+                            <!-- 1. Property Price Base -->
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <div>
+                                    <div class="font-semibold text-slate-800" id="lbl-base-price">Property Net Price</div>
+                                    <div class="text-xs text-slate-400" id="lbl-base-price-sub">Agreed purchase price</div>
+                                </div>
+                                <div class="font-bold text-slate-900" id="out-base-price">€0</div>
+                            </div>
+
+                            <!-- 2. Transfer Tax / VAT -->
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <div>
+                                    <div class="font-semibold text-slate-800 flex items-center gap-2">
+                                        <span id="lbl-tax-name">Transfer Tax (ITP)</span>
+                                        <span class="text-[10px] bg-navy-100 text-navy-800 px-2 py-0.5 rounded-full font-bold" id="out-tax-rate">7%</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400" id="lbl-tax-desc">Regional purchase tax</div>
+                                </div>
+                                <div class="font-bold text-slate-900" id="out-tax-amount">€0</div>
+                            </div>
+
+                            <!-- 3. Stamp Duty (AJD) -->
+                            <div id="row-ajd" class="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <div>
+                                    <div class="font-semibold text-slate-800 flex items-center gap-2">
+                                        <span id="lbl-ajd-name">Stamp Duty (AJD)</span>
+                                        <span class="text-[10px] bg-navy-100 text-navy-800 px-2 py-0.5 rounded-full font-bold" id="out-ajd-rate">1.2%</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400" id="lbl-ajd-desc">Acts Jurídicos Documentados (New Builds)</div>
+                                </div>
+                                <div class="font-bold text-slate-900" id="out-ajd-amount">€0</div>
+                            </div>
+
+                            <!-- 4. Notary Fees -->
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <div>
+                                    <div class="font-semibold text-slate-800" id="lbl-notary">Notary Fees (Notaría)</div>
+                                    <div class="text-xs text-slate-400" id="lbl-notary-desc">Official scale rate estimation</div>
+                                </div>
+                                <div class="font-bold text-slate-900" id="out-notary-amount">€0</div>
+                            </div>
+
+                            <!-- 5. Land Registry -->
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <div>
+                                    <div class="font-semibold text-slate-800" id="lbl-registry">Land Registry (Registro de la Propiedad)</div>
+                                    <div class="text-xs text-slate-400" id="lbl-registry-desc">Official property registration fee</div>
+                                </div>
+                                <div class="font-bold text-slate-900" id="out-registry-amount">€0</div>
+                            </div>
+
+                            <!-- 6. Legal / Gestoría Fees -->
+                            <div class="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <div>
+                                    <div class="font-semibold text-slate-800" id="lbl-lawyer">Legal & Conveyancing Fees (Lawyer / Gestoría)</div>
+                                    <div class="text-xs text-slate-400" id="lbl-lawyer-desc">Estimated at 1.0% + VAT</div>
+                                </div>
+                                <div class="font-bold text-slate-900" id="out-lawyer-amount">€0</div>
+                            </div>
+
+                            <!-- 7. Mortgage Valuation Fee -->
+                            <div id="row-mortgage-fee" class="flex justify-between items-center p-3 rounded-xl bg-amber-50/60 border border-amber-200/60">
+                                <div>
+                                    <div class="font-semibold text-amber-900" id="lbl-mortgage-fee">Mortgage Valuation & Admin</div>
+                                    <div class="text-xs text-amber-700" id="lbl-mortgage-fee-desc">Property appraisal & bank paperwork</div>
+                                </div>
+                                <div class="font-bold text-amber-950" id="out-mortgage-amount">€0</div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- DYNAMIC CHART & VISUAL PROPORTIONS -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 card-container">
+                        <h3 class="text-sm font-bold text-navy-900 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-gold-500"></i>
+                            <span id="txt-chart-title">Visual Cost Distribution</span>
+                        </h3>
+                        <div class="h-48 relative flex justify-center items-center">
+                            <canvas id="costChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- ACTION BUTTONS & EMBED GENERATOR -->
+                    <div class="flex flex-wrap gap-3 no-print pt-2">
+                        <button onclick="window.print()" class="flex-1 min-w-[180px] py-3 px-4 bg-navy-900 hover:bg-navy-800 text-white font-semibold rounded-xl transition-all shadow flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-print"></i>
+                            <span id="btn-print">Print / Save PDF</span>
+                        </button>
+                        
+                        <button onclick="openEmbedModal()" class="flex-1 min-w-[180px] py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl transition-all border border-slate-300 flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-code"></i>
+                            <span id="btn-embed">Copy Embed Code</span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="bg-white border-t border-slate-200 mt-12 py-6 no-print">
+            <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 space-y-2">
+                <p id="txt-footer-disclaimer">
+                    * Disclaimer: This calculator provides estimated costs for property acquisition in Spain based on regional standard tax rates. Final fees may vary depending on legal complexities, notary volume, and individual legal provider tariffs.
+                </p>
+                <p class="font-medium text-slate-600">© <span id="current-year"></span> Spanish Property Calculator. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Embed Modal Dialog -->
+    <div id="embedModal" class="fixed inset-0 bg-navy-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-navy-900 text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-code text-gold-500"></i> Embed Calculator on Your Site
+                </h3>
+                <button onclick="closeEmbedModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-600">
+                Copy and paste the following iframe code snippet into your WordPress, Webflow, Wix, or HTML website to offer this interactive calculator to your visitors:
+            </p>
+
+            <div class="relative">
+                <textarea id="embedCodeText" readonly rows="4" class="w-full bg-slate-900 text-slate-200 p-3 rounded-xl font-mono text-xs border border-slate-700 focus:outline-none"></textarea>
+                <button onclick="copyEmbedCode()" class="absolute top-2 right-2 px-3 py-1 bg-gold-500 hover:bg-gold-600 text-navy-900 font-bold text-xs rounded-lg transition shadow">
+                    <i class="fa-solid fa-copy mr-1"></i> Copy
+                </button>
+            </div>
+
+            <div id="copy-success-msg" class="hidden text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                <i class="fa-solid fa-check-circle"></i> Embed code copied to clipboard!
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeEmbedModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. REGIONAL TAX RATES DATA (Spanish Autonomous Communities)
+           ========================================================================== */
+        const TAX_RATES = {
+            "Andalusia": { itp: 0.07, iva: 0.10, ajd: 0.012 },
+            "Madrid": { itp: 0.06, iva: 0.10, ajd: 0.0075 },
+            "Valencia": { itp: 0.10, iva: 0.10, ajd: 0.015 },
+            "Catalonia": { itp: 0.10, iva: 0.10, ajd: 0.015 },
+            "Balearic Islands": { itp: 0.08, iva: 0.10, ajd: 0.015 },
+            "Canary Islands": { itp: 0.065, iva: 0.07, ajd: 0.0075 }, // IGIC 7% instead of IVA
+            "Murcia": { itp: 0.08, iva: 0.10, ajd: 0.015 },
+            "Galicia": { itp: 0.10, iva: 0.10, ajd: 0.015 },
+            "Castilla-La Mancha": { itp: 0.09, iva: 0.10, ajd: 0.015 },
+            "Castilla y León": { itp: 0.08, iva: 0.10, ajd: 0.015 },
+            "General": { itp: 0.08, iva: 0.10, ajd: 0.015 }
+        };
+
+        /* ==========================================================================
+           2. MULTI-LANGUAGE TRANSLATION DICTIONARY
+           ========================================================================== */
+        const I18N = {
+            en: {
+                title: "Spanish Property Cost Calculator",
+                subtitle: "Accurate tax & legal fee estimator for buying property in Spain",
+                language: "Language",
+                calcSettings: "1. Property Details",
+                calcDesc: "Adjust parameters to instantly update buying costs.",
+                propertyPrice: "Property Price (Net)",
+                required: "Required",
+                region: "Region (Autonomous Community)",
+                taxNote: "Regional property transfer taxes (ITP) vary across Spain.",
+                propertyType: "Property Type",
+                resale: "Resale (Second-hand)",
+                resaleSub: "ITP Tax Applies",
+                newBuild: "New Build (Promoción)",
+                newBuildSub: "IVA + AJD Stamp Duty",
+                mortgage: "Requires Spanish Mortgage?",
+                mortgageNo: "No (Cash Purchase)",
+                mortgageYes: "Yes (+Valuation Fee)",
+                estimatesInfo: "Estimates include standard notary, registry & legal rates.",
+                totalOutlay: "4. Totals & Summary",
+                finalCostDesc: "FINAL COST TO PAY",
+                summaryTaxesFees: "Total Taxes & Fees:",
+                summaryRatio: "Effective Cost %:",
+                costBreakdownTitle: "Itemized Purchase Expenses",
+                basePrice: "Property Net Price",
+                basePriceSub: "Agreed purchase price",
+                taxNameItp: "Purchase Tax (ITP)",
+                taxNameIva: "Purchase Tax (IVA)",
+                taxNameIgic: "Canary IGIC Tax",
+                taxDescItp: "Regional second-hand purchase tax",
+                taxDescIva: "Standard new property purchase VAT",
+                ajdName: "Stamp Duty Amount (AJD)",
+                ajdDesc: "Acts Jurídicos Documentados (New Builds)",
+                notary: "Notary Fees (Est. 0.5% or Min €600)",
+                notaryDesc: "Standard estimate",
+                registry: "Land Registry (Est. 0.25% or Min €400)",
+                registryDesc: "Standard estimate",
+                lawyer: "Lawyer / Gestoría (Est. 1%)",
+                lawyerDesc: "Recommended",
+                mortgageFee: "Mortgage Fees",
+                mortgageFeeDesc: "Mortgage valuation cost",
+                chartTitle: "Visual Cost Distribution",
+                print: "Print / Save report",
+                embed: "Copy embed code",
+                footerDisclaimer: "* Disclaimer: This calculator provides estimated costs for property acquisition in Spain based on regional standard tax rates. Final fees may vary depending on legal complexities, notary volume, and individual legal provider tariffs."
+            },
+            es: {
+                title: "Calculadora de Gastos de Compra Inmobiliaria en España",
+                subtitle: "Calcule al instante los impuestos, honorarios notariales, costes del Registro de la Propiedad y gastos legales para la compra de su propiedad en España.",
+                language: "Español",
+                calcSettings: "1. Detalles de la Propiedad",
+                calcDesc: "Ajuste los parámetros para actualizar los costes de compra al instante.",
+                propertyPrice: "Precio de la Propiedad (Neto)",
+                required: "Requerido",
+                region: "Región (Comunidad Autónoma)",
+                taxNote: "El Impuesto de Transmisiones (ITP) varía según la comunidad autónoma.",
+                propertyType: "Tipo de Propiedad",
+                resale: "Segunda mano (Reventa)",
+                resaleSub: "Aplica ITP",
+                newBuild: "Obra nueva",
+                newBuildSub: "Aplica IVA + AJD",
+                mortgage: "¿Necesita Hipoteca?",
+                mortgageNo: "No",
+                mortgageYes: "Sí",
+                estimatesInfo: "Incluye estimaciones según aranceles oficiales de notaría y registro.",
+                totalOutlay: "4. Totales y Resumen",
+                finalCostDesc: "COSTE FINAL A PAGAR",
+                summaryTaxesFees: "Total Impuestos y Gastos:",
+                summaryRatio: "Porcentaje Efectivo de Costes:",
+                costBreakdownTitle: "2. Impuestos (Principales Costes) y 3. Honorarios y Gestiones Legal",
+                basePrice: "Precio Neto de la Propiedad",
+                basePriceSub: "Precio pactado de compraventa",
+                taxNameItp: "Impuesto de Compra (ITP)",
+                taxNameIva: "Impuesto de Compra (IVA)",
+                taxNameIgic: "Impuesto IGIC Canarias",
+                taxDescItp: "Tipo impositivo aplicado",
+                taxDescIva: "Tipo impositivo aplicado",
+                ajdName: "Actos Jurídicos Documentados (AJD)",
+                ajdDesc: "Tipo del Acto Jurídico Documentado (AJD)",
+                notary: "Honorarios Notariales (Est. 0.5% o Mín €600)",
+                notaryDesc: "Estimación estándar",
+                registry: "Registro de la Propiedad (Est. 0.25% o Mín €400)",
+                registryDesc: "Estimación estándar",
+                lawyer: "Abogado / Gestoría (Est. 1%)",
+                lawyerDesc: "Muy recomendado",
+                mortgageFee: "Tasación / Gastos de Hipoteca",
+                mortgageFeeDesc: "Coste est. de tasación",
+                chartTitle: "Distribución Visual del Coste",
+                print: "Imprimir / Guardar informe",
+                embed: "Copiar código para insertar",
+                footerDisclaimer: "* Aviso Legal: Esta calculadora proporciona una estimación orientativa basada en los tipos impositivos generales de cada comunidad autónoma. Los honorarios finales pueden variar según la complejidad jurídica y las tarifas específicas."
+            },
+            fr: {
+                title: "Calculateur de Frais d'Achat Immobilier en Espagne",
+                subtitle: "Calculez instantanément les taxes, frais de notaire, registre de la propriété et frais juridiques pour l'achat de votre bien en Espagne.",
+                language: "Français",
+                calcSettings: "1. Détails du Bien",
+                calcDesc: "Ajustez les paramètres pour mettre à jour instantanément les coûts d'achat.",
+                propertyPrice: "Prix du Bien (Net)",
+                required: "Requis",
+                region: "Région (Communauté Autonome)",
+                taxNote: "Les taxes de transfert (ITP) varient selon les régions en Espagne.",
+                propertyType: "Type de Bien",
+                resale: "Ancien (Revente)",
+                resaleSub: "Taxe ITP applicable",
+                newBuild: "Neuf (VEFA)",
+                newBuildSub: "TVA + Droit de Timbre AJD",
+                mortgage: "Besoin d'un Crédit Hypothécaire ?",
+                mortgageNo: "Non",
+                mortgageYes: "Oui",
+                estimatesInfo: "Les estimations incluent les tarifs réglementés de notaire, registre et frais juridiques.",
+                totalOutlay: "4. Totaux et Synthèse",
+                finalCostDesc: "COÛT FINAL À PAYER",
+                summaryTaxesFees: "Total Taxes et Frais :",
+                summaryRatio: "Pourcentage Effectif des Frais :",
+                costBreakdownTitle: "2. Taxes et Impôts et 3. Honoraires et Frais Juridiques",
+                basePrice: "Prix Net du Bien",
+                basePriceSub: "Prix d'achat convenu",
+                taxNameItp: "Montant de la Taxe (ITP)",
+                taxNameIva: "Montant de la Taxe (IVA)",
+                taxNameIgic: "Taxe Canarienne IGIC",
+                taxDescItp: "Taux d'imposition appliqué",
+                taxDescIva: "Taux d'imposition appliqué",
+                ajdName: "Montant du Droit de Timbre (AJD)",
+                ajdDesc: "Taux du Droit de Timbre (AJD)",
+                notary: "Frais de Notaire (Est. 0,5% ou Min 600 €)",
+                notaryDesc: "Estimation standard",
+                registry: "Registre de la Propriété (Est. 0,25% ou Min 400 €)",
+                registryDesc: "Estimation standard",
+                lawyer: "Avocat / Gestoría (Est. 1%)",
+                lawyerDesc: "Fortement recommandé",
+                mortgageFee: "Évaluation / Frais d'Hypothèque",
+                mortgageFeeDesc: "Coût estimé de l'évaluation",
+                chartTitle: "Répartition Visuelle des Frais",
+                print: "Imprimer / Enregistrer le rapport",
+                embed: "Copier le code d'intégration",
+                footerDisclaimer: "* Clause de non-responsabilité : Ce calculateur fournit une estimation des coûts d'acquisition immobilière en Espagne sur la base des taux d'imposition régionaux. Les frais finaux peuvent varier en fonction de la complexité juridique et des tarifs appliqués."
+            },
+            nl: {
+                title: "Spaans Vastgoed Kosten Calculator",
+                subtitle: "Nauwkeurige berekening van belastingen & juridische kosten in Spanje",
+                language: "Taal",
+                calcSettings: "Berekeningsparameters",
+                calcDesc: "Pas waarden aan om direct de aankoopkosten te zien.",
+                propertyPrice: "Aankoopprijs Woning (€)",
+                required: "Vereist",
+                region: "Regio (Autonome Regio)",
+                taxNote: "Overdrachtsbelasting (ITP) varieert per regio in Spanje.",
+                propertyType: "Type Woning",
+                resale: "Bestaande Bouw (Herverkoop)",
+                resaleSub: "ITP Belasting van toepassing",
+                newBuild: "Nieuwbouw (Promoción)",
+                newBuildSub: "BTW (IVA) + Zegelrecht (AJD)",
+                mortgage: "Hypotheek Nodig in Spanje?",
+                mortgageNo: "Nee (Eigen Middelen)",
+                mortgageYes: "Ja (+Taxatie & Bankkosten)",
+                estimatesInfo: "Schattingen zijn inclusief notariskosten, kadaster & advocaat.",
+                totalOutlay: "Totale Benodigde Investering",
+                finalCostDesc: "Aankoopprijs + Alle Belastingen & Bijkomende Kosten",
+                summaryTaxesFees: "Belastingen & Kosten:",
+                summaryRatio: "Extra Kosten %:",
+                costBreakdownTitle: "Gedetailleerd Kostenoverzicht",
+                basePrice: "Netto Aankoopprijs",
+                basePriceSub: "Overeengekomen verkoopprijs",
+                taxNameItp: "Overdrachtsbelasting (ITP)",
+                taxNameIva: "BWT / IVA (Nieuwbouw)",
+                taxNameIgic: "Canarische IGIC Belasting",
+                taxDescItp: "Regionale overdrachtsbelasting",
+                taxDescIva: "Standaard BTW op nieuwbouw",
+                ajdName: "Zegelrecht (AJD)",
+                ajdDesc: "Gedocumenteerde rechtshandelingen (Nieuwbouw)",
+                notary: "Notariskosten (Notaría)",
+                notaryDesc: "Schatting op basis van officieel tarief",
+                registry: "Eigendomsregister (Registro)",
+                registryDesc: "Officiële registratiekosten",
+                lawyer: "Advocaat & Gestoría Kosten",
+                lawyerDesc: "Geschat op 1,0% + BTW",
+                mortgageFee: "Hypotheektaxatie & Beheer",
+                mortgageFeeDesc: "Woningtaxatie en bankadministratie",
+                chartTitle: "Visuele Kostenverdeling",
+                print: "Afdrukken / Opslaan als PDF",
+                embed: "Embed Code Kopiëren",
+                footerDisclaimer: "* Disclaimer: Deze calculator geeft een indicatieve schatting op basis van de geldende regionale belastingtarieven in Spanje. Definitieve kosten kunnen variëren afhankelijk van notariskosten en gekozen juridische begeleiding."
+            },
+            pl: {
+                title: "Kalkulator Kosztów Zakupu Nieruchomości w Hiszpanii",
+                subtitle: "Precyzyjne wyliczenie podatków i opłat prawnych przy zakupie",
+                language: "Język",
+                calcSettings: "Parametry Obliczeń",
+                calcDesc: "Dostosuj wartości, aby natychmiast przeliczyć koszty.",
+                propertyPrice: "Cena Nieruchomości (€)",
+                required: "Wymagane",
+                region: "Region (Wspólnota Autonomiczna)",
+                taxNote: "Podatek od czynności cywilnoprawnych (ITP) różni się w zależności od regionu.",
+                propertyType: "Typ Nieruchomości",
+                resale: "Rynek Wtórny (Resale)",
+                resaleSub: "Dotyczy podatek ITP",
+                newBuild: "Rynek Pierwotny (Deweloper)",
+                newBuildSub: "Dotyczy VAT (IVA) + AJD",
+                mortgage: "Czy Potrzebujesz Hipoteki?",
+                mortgageNo: "Nie (Zakup za Gotówkę)",
+                mortgageYes: "Tak (+Wycena i Opłaty Bankowe)",
+                estimatesInfo: "Szacunki obejmują opłaty notarialne, sądowe i prawne.",
+                totalOutlay: "Całkowity Wymagany Kapitał",
+                finalCostDesc: "Cena Nieruchomości + Wszystkie Podatki i Opłaty",
+                summaryTaxesFees: "Podatki i Koszty:",
+                summaryRatio: "Dodatkowy Koszt %:",
+                costBreakdownTitle: "Szczegółowe Zestawienie Kosztów",
+                basePrice: "Cena Netto Nieruchomości",
+                basePriceSub: "Uzgodniona cena zakupu",
+                taxNameItp: "Podatek ITP",
+                taxNameIva: "Podatek VAT (IVA)",
+                taxNameIgic: "Podatek IGIC (Kanary)",
+                taxDescItp: "Podatek od zakupu z rynku wtórnego",
+                taxDescIva: "Stawka VAT dla nieruchomości deweloperskich",
+                ajdName: "Opłata Skarbowa (AJD)",
+                ajdDesc: "Podatek od czynności cywilnoprawnych (Obra Nueva)",
+                notary: "Opłaty Notarialne (Notaría)",
+                notaryDesc: "Szacunek według taksy urzędowej",
+                registry: "Księgi Wieczyste (Registro)",
+                registryDesc: "Opłata za wpis do rejestru",
+                lawyer: "Obsługa Prawna (Adwokat / Gestoría)",
+                lawyerDesc: "Szacowane na 1.0% + VAT",
+                mortgageFee: "Wycena Hipoteczna i Bank",
+                mortgageFeeDesc: "Rzeczoznawca i formalności bankowe",
+                chartTitle: "Wizualny Rozkład Kosztów",
+                print: "Drukuj / Zapisz PDF",
+                embed: "Kopiuj Kod Embed",
+                footerDisclaimer: "* Zastrzeżenie: Kalkulator przedstawia szacunkowe koszty zakupu nieruchomości w Hiszpanii na podstawie standardowych stawek regionalnych. Ostateczne opłaty mogą się różnić w zależności od kancelarii prawnej i taksy notarialnej."
+            }
+        };
+
+        // Current active language
+        let currentLang = 'en';
+        let costChartInstance = null;
+
+        // Set date string for PDF print header
+        document.getElementById('print-date').innerText = new Date().toLocaleDateString();
+        document.getElementById('current-year').innerText = new Date().getFullYear();
+
+        /* ==========================================================================
+           3. CALCULATION ENGINE & UI UPDATE LOGIC
+           ========================================================================== */
+        function calculateCosts() {
+            // Read UI inputs
+            const price = parseFloat(document.getElementById('property-price').value) || 0;
+            const region = document.getElementById('region').value;
+            const isNewBuild = document.querySelector('input[name="property_type"]:checked').value === 'new';
+            const hasMortgage = document.querySelector('input[name="mortgage"]:checked').value === 'yes';
+
+            // Lookup regional tax rates
+            const regionRates = TAX_RATES[region] || TAX_RATES["General"];
+
+            let taxRate = 0;
+            let taxAmount = 0;
+            let ajdRate = 0;
+            let ajdAmount = 0;
+            let taxLabelKey = 'taxNameItp';
+            let taxDescKey = 'taxDescItp';
+
+            if (!isNewBuild) {
+                // RESALE: ITP Tax applies, AJD is 0
+                taxRate = regionRates.itp;
+                taxAmount = price * taxRate;
+                ajdRate = 0;
+                ajdAmount = 0;
+                taxLabelKey = 'taxNameItp';
+                taxDescKey = 'taxDescItp';
+            } else {
+                // NEW BUILD: IVA (or IGIC for Canary Islands) + AJD Stamp Duty
+                taxRate = regionRates.iva;
+                taxAmount = price * taxRate;
+                ajdRate = regionRates.ajd;
+                ajdAmount = price * ajdRate;
+                taxLabelKey = (region === "Canary Islands") ? 'taxNameIgic' : 'taxNameIva';
+                taxDescKey = 'taxDescIva';
+            }
+
+            // Fees & Legal Calculations
+            // Official Notary Fee Estimate: scale rate with a base minimum
+            const notaryFees = Math.max(600, price * 0.005);
+            
+            // Official Land Registry Estimate: scale rate with a base minimum
+            const registryFees = Math.max(400, price * 0.0025);
+            
+            // Lawyer / Gestoría Fees: Standard 1% of purchase price
+            const lawyerFees = price * 0.01;
+            
+            // Mortgage Valuation & Processing Fee: €800 flat if mortgage requested
+            const mortgageFees = hasMortgage ? 800 : 0;
+
+            // Totals
+            const totalTaxes = taxAmount + ajdAmount;
+            const totalFees = notaryFees + registryFees + lawyerFees + mortgageFees;
+            const totalTaxesAndFees = totalTaxes + totalFees;
+            const finalCostToPay = price + totalTaxesAndFees;
+            const effectiveRate = price > 0 ? (totalTaxesAndFees / price) * 100 : 0;
+
+            // Render Results to UI
+            document.getElementById('out-final-cost').innerText = formatCurrency(finalCostToPay);
+            document.getElementById('out-total-taxes-fees').innerText = formatCurrency(totalTaxesAndFees);
+            document.getElementById('out-effective-rate').innerText = '+' + effectiveRate.toFixed(2) + '%';
+
+            document.getElementById('out-base-price').innerText = formatCurrency(price);
+            
+            // Dynamic Tax Label Update
+            const t = I18N[currentLang];
+            document.getElementById('lbl-tax-name').innerText = t[taxLabelKey];
+            document.getElementById('lbl-tax-desc').innerText = t[taxDescKey];
+            document.getElementById('out-tax-rate').innerText = (taxRate * 100).toFixed(1) + '%';
+            document.getElementById('out-tax-amount').innerText = formatCurrency(taxAmount);
+
+            // Stamp Duty (AJD) row visibility & text
+            const ajdRow = document.getElementById('row-ajd');
+            if (isNewBuild) {
+                ajdRow.classList.remove('hidden');
+                document.getElementById('out-ajd-rate').innerText = (ajdRate * 100).toFixed(2) + '%';
+                document.getElementById('out-ajd-amount').innerText = formatCurrency(ajdAmount);
+            } else {
+                ajdRow.classList.add('hidden');
+            }
+
+            document.getElementById('out-notary-amount').innerText = formatCurrency(notaryFees);
+            document.getElementById('out-registry-amount').innerText = formatCurrency(registryFees);
+            document.getElementById('out-lawyer-amount').innerText = formatCurrency(lawyerFees);
+
+            // Mortgage fee row visibility
+            const mortgageRow = document.getElementById('row-mortgage-fee');
+            if (hasMortgage) {
+                mortgageRow.classList.remove('hidden');
+                document.getElementById('out-mortgage-amount').innerText = formatCurrency(mortgageFees);
+            } else {
+                mortgageRow.classList.add('hidden');
+            }
+
+            // Region Badge
+            document.getElementById('txt-region-badge').innerText = region;
+
+            // Update radio button style states
+            updateRadioStyles();
+
+            // Update Dynamic Chart
+            updateChart(price, totalTaxes, totalFees);
+        }
+
+        /* Helper currency formatter */
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('de-DE', {
+                style: 'currency',
+                currency: 'EUR',
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        /* Quick button selector for price input */
+        function setPrice(val) {
+            document.getElementById('property-price').value = val;
+            calculateCosts();
+        }
+
+        /* Update visual active styles on radio button cards */
+        function updateRadioStyles() {
+            const isNew = document.querySelector('input[name="property_type"]:checked').value === 'new';
+            const resaleLabel = document.getElementById('type-resale-label');
+            const newLabel = document.getElementById('type-new-label');
+
+            if (isNew) {
+                newLabel.className = "flex items-center justify-center p-3 border-2 border-gold-500 bg-gold-50/30 rounded-xl cursor-pointer transition-all";
+                resaleLabel.className = "flex items-center justify-center p-3 border-2 border-slate-200 rounded-xl cursor-pointer transition-all hover:bg-slate-50";
+            } else {
+                resaleLabel.className = "flex items-center justify-center p-3 border-2 border-gold-500 bg-gold-50/30 rounded-xl cursor-pointer transition-all";
+                newLabel.className = "flex items-center justify-center p-3 border-2 border-slate-200 rounded-xl cursor-pointer transition-all hover:bg-slate-50";
+            }
+
+            const hasMortgage = document.querySelector('input[name="mortgage"]:checked').value === 'yes';
+            const mortgageNoLabel = document.getElementById('mortgage-no-label');
+            const mortgageYesLabel = document.getElementById('mortgage-yes-label');
+
+            if (hasMortgage) {
+                mortgageYesLabel.className = "flex items-center justify-center p-2.5 border-2 border-gold-500 bg-gold-50/30 rounded-xl cursor-pointer transition-all";
+                mortgageNoLabel.className = "flex items-center justify-center p-2.5 border-2 border-slate-200 rounded-xl cursor-pointer transition-all hover:bg-slate-50";
+            } else {
+                mortgageNoLabel.className = "flex items-center justify-center p-2.5 border-2 border-gold-500 bg-gold-50/30 rounded-xl cursor-pointer transition-all";
+                mortgageYesLabel.className = "flex items-center justify-center p-2.5 border-2 border-slate-200 rounded-xl cursor-pointer transition-all hover:bg-slate-50";
+            }
+        }
+
+        /* ==========================================================================
+           4. DYNAMIC CHART.JS RENDERING
+           ========================================================================== */
+        function updateChart(price, taxes, fees) {
+            const ctx = document.getElementById('costChart').getContext('2d');
+            const t = I18N[currentLang];
+
+            const labels = [
+                t.basePrice,
+                "Taxes (ITP / IVA / AJD)",
+                "Legal, Notary & Registry Fees"
+            ];
+
+            const data = [price, taxes, fees];
+
+            if (costChartInstance) {
+                costChartInstance.data.labels = labels;
+                costChartInstance.data.datasets[0].data = data;
+                costChartInstance.update();
+            } else {
+                costChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: [
+                                '#1b365d', // Navy 700
+                                '#c5a03e', // Gold 500
+                                '#94a3b8'  // Slate 400
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: { family: 'Inter', size: 11 },
+                                    boxWidth: 12,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        return ` ${label}: ${formatCurrency(value)}`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            }
+        }
+
+        /* ==========================================================================
+           5. MULTI-LANGUAGE SWITCHER LOGIC
+           ========================================================================== */
+        function setLanguage(lang) {
+            currentLang = lang;
+            const t = I18N[lang];
+
+            // Update text contents
+            document.getElementById('app-header-title').innerText = t.title;
+            document.getElementById('app-header-subtitle').innerText = t.subtitle;
+            document.getElementById('lbl-language').innerText = t.language;
+            document.getElementById('txt-calc-settings').innerText = t.calcSettings;
+            document.getElementById('txt-calc-desc').innerText = t.calcDesc;
+            document.getElementById('lbl-property-price').innerText = t.propertyPrice;
+            document.getElementById('lbl-required').innerText = t.required;
+            document.getElementById('lbl-region').innerText = t.region;
+            document.getElementById('lbl-tax-note').innerText = t.taxNote;
+            document.getElementById('lbl-property-type').innerText = t.propertyType;
+            document.getElementById('opt-resale').innerText = t.resale;
+            document.getElementById('opt-resale-sub').innerText = t.resaleSub;
+            document.getElementById('opt-new').innerText = t.newBuild;
+            document.getElementById('opt-new-sub').innerText = t.newBuildSub;
+            document.getElementById('lbl-mortgage').innerText = t.mortgage;
+            document.getElementById('opt-mortgage-no').innerText = t.mortgageNo;
+            document.getElementById('opt-mortgage-yes').innerText = t.mortgageYes;
+            document.getElementById('txt-estimates-info').innerHTML = `<i class="fa-solid fa-circle-info text-navy-700 mr-1"></i> ${t.estimatesInfo}`;
+            
+            document.getElementById('lbl-total-outlay').innerText = t.totalOutlay;
+            document.getElementById('lbl-final-cost-desc').innerText = t.finalCostDesc;
+            document.getElementById('lbl-summary-taxes-fees').innerText = t.summaryTaxesFees;
+            document.getElementById('lbl-summary-ratio').innerText = t.summaryRatio;
+            document.getElementById('txt-cost-breakdown-title').innerText = t.costBreakdownTitle;
+            
+            document.getElementById('lbl-base-price').innerText = t.basePrice;
+            document.getElementById('lbl-base-price-sub').innerText = t.basePriceSub;
+            document.getElementById('lbl-ajd-name').innerText = t.ajdName;
+            document.getElementById('lbl-ajd-desc').innerText = t.ajdDesc;
+            document.getElementById('lbl-notary').innerText = t.notary;
+            document.getElementById('lbl-notary-desc').innerText = t.notaryDesc;
+            document.getElementById('lbl-registry').innerText = t.registry;
+            document.getElementById('lbl-registry-desc').innerText = t.registryDesc;
+            document.getElementById('lbl-lawyer').innerText = t.lawyer;
+            document.getElementById('lbl-lawyer-desc').innerText = t.lawyerDesc;
+            document.getElementById('lbl-mortgage-fee').innerText = t.mortgageFee;
+            document.getElementById('lbl-mortgage-fee-desc').innerText = t.mortgageFeeDesc;
+            
+            document.getElementById('txt-chart-title').innerText = t.chartTitle;
+            document.getElementById('btn-print').innerText = t.print;
+            document.getElementById('btn-embed').innerText = t.embed;
+            document.getElementById('txt-footer-disclaimer').innerText = t.footerDisclaimer;
+
+            // Highlight active language button
+            ['en', 'es', 'fr', 'nl', 'pl'].forEach(l => {
+                const btn = document.getElementById(`btn-lang-${l}`);
+                if (btn) {
+                    if (l === lang) {
+                        btn.className = "lang-btn px-2.5 py-1 text-xs rounded-lg font-semibold transition-all duration-200 bg-gold-500 text-navy-900 shadow";
+                    } else {
+                        btn.className = "lang-btn px-2.5 py-1 text-xs rounded-lg font-semibold transition-all duration-200 text-slate-300 hover:text-white";
+                    }
+                }
+            });
+
+            // Recalculate costs to update dynamic label language
+            calculateCosts();
+        }
+
+        /* ==========================================================================
+           6. EMBED CODE GENERATOR MODAL LOGIC
+           ========================================================================== */
+        function openEmbedModal() {
+            const embedCode = `<iframe src="${window.location.href}" width="100%" height="850" frameborder="0" style="border:0; border-radius:16px; overflow:hidden;" title="Spanish Property Purchase Cost Calculator"></iframe>`;
+            document.getElementById('embedCodeText').value = embedCode;
+            document.getElementById('embedModal').classList.remove('hidden');
+            document.getElementById('copy-success-msg').classList.add('hidden');
+        }
+
+        function closeEmbedModal() {
+            document.getElementById('embedModal').classList.add('hidden');
+        }
+
+        function copyEmbedCode() {
+            const embedCodeText = document.getElementById('embedCodeText');
+            embedCodeText.select();
+            embedCodeText.setSelectionRange(0, 99999); // For mobile compatibility
+            
+            try {
+                document.execCommand('copy');
+                document.getElementById('copy-success-msg').classList.remove('hidden');
+            } catch (err) {
+                console.error('Copy failed:', err);
+            }
+        }
+
+        // Initialize calculations on page launch
+        window.onload = function() {
+            calculateCosts();
+        };
+    </script>
+</body>
+</html>
